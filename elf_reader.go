@@ -354,7 +354,6 @@ func (ec *elfCode) loadRelocations(relSections map[elf.SectionIndex]*elf.Section
 //
 // The resulting map is indexed by function name.
 func (ec *elfCode) loadProgramSections() (map[string]*ProgramSpec, error) {
-
 	progs := make(map[string]*ProgramSpec)
 
 	// Generate a ProgramSpec for each function found in each program section.
@@ -939,6 +938,10 @@ func mapSpecFromBTF(es *elfSection, vs *btf.VarSecinfo, def *btf.Struct, spec *b
 			keySize = uint64(size)
 
 		case "value":
+			if len(def.Members) == 1 {
+				// if we only have value present, we are most likely not in the correct type in the BTF yet, go deeper.
+				return traverseBTFMapSpec(es, vs, member, spec, name, inner)
+			}
 			if valueSize != 0 {
 				return nil, errors.New("both value and value_size given")
 			}
@@ -970,12 +973,6 @@ func mapSpecFromBTF(es *elfSection, vs *btf.VarSecinfo, def *btf.Struct, spec *b
 			}
 
 		case "value_size":
-			// Value needs to be nil and valueSize needs to be 0 for value_size to be
-			// considered a valid member.
-			if value != nil || valueSize != 0 {
-				return nil, errors.New("both value and value_size given")
-			}
-
 			valueSize, err = uintFromBTF(member.Type)
 			if err != nil {
 				return nil, fmt.Errorf("can't get BTF value size: %w", err)
@@ -1057,7 +1054,7 @@ func mapSpecFromBTF(es *elfSection, vs *btf.VarSecinfo, def *btf.Struct, spec *b
 			}
 
 		default:
-			return nil, fmt.Errorf("unrecognized field %s in BTF map definition", member.Name)
+			return traverseBTFMapSpec(es, vs, member, spec, name, inner)
 		}
 	}
 
@@ -1088,6 +1085,14 @@ func mapSpecFromBTF(es *elfSection, vs *btf.VarSecinfo, def *btf.Struct, spec *b
 		Tags:       slices.Clone(v.Tags),
 		MapExtra:   mapExtra,
 	}, nil
+}
+
+func traverseBTFMapSpec(es *elfSection, vs *btf.VarSecinfo, member btf.Member, spec *btf.Spec, name string, inner bool) (*MapSpec, error) {
+	mapStruct, ok := btf.UnderlyingType(member.Type).(*btf.Struct)
+	if !ok {
+		return nil, fmt.Errorf("unrecognized field %s in BTF map definition", member.Name)
+	}
+	return mapSpecFromBTF(es, vs, mapStruct, spec, name, inner)
 }
 
 // uintFromBTF resolves the __uint and __ulong macros.
