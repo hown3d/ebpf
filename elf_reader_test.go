@@ -929,6 +929,22 @@ func TestKfuncKmod(t *testing.T) {
 	}
 }
 
+func TestWeakKfuncKmod(t *testing.T) {
+	testutils.SkipOnOldKernel(t, "5.18", "kfunc support")
+
+	file := testutils.NativeFile(t, "testdata/kfunc-kmod-%s.elf")
+	spec, err := LoadCollectionSpec(file)
+	qt.Assert(t, qt.IsNil(err))
+
+	var obj struct {
+		Main *Program `ebpf:"call_weak_kfunc"`
+	}
+
+	err = spec.LoadAndAssign(&obj, nil)
+	testutils.SkipIfNotSupported(t, err)
+	qt.Assert(t, qt.IsNil(err))
+	defer obj.Main.Close()
+}
 func TestSubprogRelocation(t *testing.T) {
 	testutils.SkipOnOldKernel(t, "5.13", "bpf_for_each_map_elem")
 

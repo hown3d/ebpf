@@ -8,3 +8,13 @@ __section("tc") int call_kfunc() {
 	bpf_testmod_test_mod_kfunc(0);
 	return 1;
 }
+
+extern void bpf_kfunc_common_test() __weak __ksym;
+
+__section("tc") int call_weak_kfunc() {
+	if (bpf_ksym_exists(bpf_kfunc_common_test)) {
+		bpf_kfunc_common_test();
+		return 1;
+	}
+	return 0;
+}

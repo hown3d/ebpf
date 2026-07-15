@@ -352,8 +352,15 @@ fixups:
 			return nil, err
 		}
 
+		// bpf_ksym_exists() will result in an ldimm64 with a kfunc reference.
+		// Populate it with the (non-zero) BTF ID to make the subsequent
+		// branching instruction work.
 		ins.Constant = int64(id)
-		ins.Offset = int16(idx)
+
+		// Verifier only allows offsets on CALL instructions.
+		if ins.OpCode.JumpOp() == asm.Call {
+			ins.Offset = int16(idx)
+		}
 
 		if !iter.Next() {
 			break
