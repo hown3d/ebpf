@@ -171,6 +171,8 @@ func Generate(args GenerateArgs) error {
 		}
 		_, ok := btf.As[*btf.Struct](typ)
 		needsStructsPkg = needsStructsPkg || ok
+		_, ok = btf.As[*btf.Union](typ)
+		needsStructsPkg = needsStructsPkg || ok
 		typeDecls = append(typeDecls, decl)
 	}
 
